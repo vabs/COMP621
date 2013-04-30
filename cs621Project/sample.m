@@ -1,12 +1,9 @@
-function abc()
-b = 10;
-c = 1;
-z = 19;
-for i=1:20
- a(i) = 20;
- d(i) = 19;
- x(i) = a(i+1);
- a(i+1) = d(i);
- 
+a = zeros(10001,1);
+d = zeros(10001,1);
+x = zeros(10001,1);
+tic();
+for i=1:1:5000
+  d(i+1) = d(i) + 20;
+  x(i) = a(i+1);
 end
-end
+toc();

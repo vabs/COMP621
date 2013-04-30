@@ -57,6 +57,7 @@ public class StatementSelfDependence extends AbstractNodeCaseHandler {
 		  // 1 = The statement in self-dependent.
 		  HashMap<Long, Integer> dependenceHM = new HashMap<>();
 		  dependenceHM = eachDependece(stmts, rangeLoop, loopVar);
+		  printHashMap(dependenceHM);
 		  // self-dependence test over
 		  
 		  // for getting information about statement output
@@ -75,6 +76,13 @@ public class StatementSelfDependence extends AbstractNodeCaseHandler {
 		  // Using HashMap for this
 		  HashMap<Long, List<Long>> stmtDGHM = new LinkedHashMap<>();
 		  stmtDGHM = statementDependence(stmtDHM);
+		  /*Iterator it2 = stmtDGHM.keySet().iterator();
+		  while(it2.hasNext()){
+			  List<Long> ll = stmtDGHM.get(it2.next());
+			  System.out.println(ll.size());
+		  }*/
+		  
+		  
 		  // true dependence over
 		  
 		  // The true dependence information for each statement will be helpful in 
@@ -110,12 +118,11 @@ public class StatementSelfDependence extends AbstractNodeCaseHandler {
 			Iterator it1 = executionOrder.iterator();
 			for(int i=executionOrder.size() -1; i>=0; i--){
 				Long l = executionOrder.get(i);
-				ASTNode s = ll.get(l);
-				AstUtil.insertAfter(node, (ASTNode<?>) s);
+				if(dependenceHM.get(l) != 1){
+					ASTNode s = ll.get(l);
+					AstUtil.insertAfter(node, (ASTNode<?>) s);
+				}
 			}
-			
-			//int nodeIndex = node.getParent().getIndexOfChild(node);
-			//node.getParent().removeChild(nodeIndex);
 		}
 	
 	/**
@@ -238,90 +245,58 @@ public class StatementSelfDependence extends AbstractNodeCaseHandler {
 							stmtData.add(lw);
 					}
 				}
-				//System.out.println(exp.getChild(0).getNodeString());
-				//System.out.println(exp.getChild(1).getNodeString());
 			}
 			
 			//printList(stmtData);			
 			// For saving the data on right side of the statement
 			// Here we only care about the expression which involve the variable 
 			// present on the left hand side of the statement
-			
-			if(statement.getChild(1).getNumChild() > 1){
-				//ast.List ls = (ast.List) statement.getChild(1).getChild(1);
-				//Expr exp = (Expr) ls.getChild(0);	
-				Integer noOfChild = statement.getChild(1).getNumChild();
-				ASTNode rChild = statement.getChild(1);
-				for(int i=0; i < noOfChild; i++){
-					String temp1 = stmtData.get(0).getFirstStringValue();
-					String temp2 = rChild.getChild(i).getVarName();
-					if(temp1.equals(temp2)){
-						if(rChild.getChild(i).getNumChild() > 1){
-							ast.List ls = (ast.List) rChild.getChild(0).getChild(1);
-							Expr exp = (Expr) ls.getChild(0);
-							if(exp.getChild(0).getClass().toString().endsWith("MTimesExpr")){
-								ListWrapper lw = new ListWrapper(
-											statement.getChild(0).getVarName(),
-											exp.getChild(0).getChild(1).getNodeString(), 
-											Integer.parseInt(exp.getChild(1).getNodeString()),
-											Integer.parseInt(exp.getChild(0).getChild(0).getNodeString())
-										);
-								stmtData.add(lw);
-							}
-							else{
-								if(exp.getChild(0).getClass().toString().endsWith("IntLiteralExpr")){
-									ListWrapper lw = new ListWrapper(
-											statement.getChild(0).getVarName(),
-											exp.getChild(1).getVarName(), 
-											0,
-											Integer.parseInt(exp.getChild(0).getNodeString())
-										);
-									stmtData.add(lw);
-								}
-								else{
-									if(exp.getChild(0).getClass().toString().endsWith("NameExpr"))
-									{
-										ListWrapper lw = new ListWrapper(
-												statement.getChild(0).getVarName(),
-												exp.getChild(0).getNodeString(), 
-												0,
-												Integer.parseInt(exp.getChild(1).getNodeString())
-											);
-										stmtData.add(lw);										
-									}
-									else{
-										
-										ListWrapper lw = new ListWrapper(
-												statement.getChild(0).getVarName(),
-												exp.getChild(1).getNodeString(), 
-												0,
-												Integer.parseInt(exp.getChild(0).getNodeString())
-											);
-										stmtData.add(lw);
-									}
-								}
-							}
-						}
-						else{
-							System.out.println("Empty Condition");
-						}
+			List<ParameterizedExpr> pExprAll = getParameterizedExpr((Expr) statement.getChild(1));
+			Iterator it = pExprAll.iterator();
+			while(it.hasNext()){
+				ParameterizedExpr expr = (ParameterizedExpr) it.next();
+				Expr e1 = (Expr) ((ast.List) expr.getChild(1)).getChild(0);
+				if(e1 instanceof BinaryExpr){
+					if( ((Expr) e1.getChild(0)) instanceof NameExpr){
+						ListWrapper lw = new ListWrapper(expr.getChild(0).getVarName(),
+								 e1.getChild(0).getNodeString().toString(),
+								 Integer.parseInt(e1.getChild(1).getNodeString().toString()),
+								 0);
+						stmtData.add(lw);
+					}
+					else{
+						ListWrapper lw = new ListWrapper(expr.getChild(0).getVarName(),
+								 e1.getChild(1).getNodeString().toString(),
+								 Integer.parseInt(e1.getChild(0).getNodeString().toString()),
+								 0);
+						stmtData.add(lw);
 					}
 				}
-				//printList(stmtData);
+				else{
+					ListWrapper lw = new ListWrapper(expr.getChild(0).getVarName(),
+							 e1.getChild(0).getNodeString().toString(),
+							 0,
+							 1);
+					stmtData.add(lw);
+				}
 			}
-			
-			
+			//printList(stmtData);
 			// Finding GCD of the two number on which loop iteration is happening
 			// a[i+11] = a[i+2] + 10;
 			// gcd(11,2)
 			if(stmtData.size() > 1){
-				int gcdValue = findGCD(stmtData.get(0).getIntegerValue(), stmtData.get(1).getIntegerValue());
-				int comparisonValue = Math.abs(stmtData.get(0).getLoopIndexValue() - stmtData.get(1).getLoopIndexValue());
-				if(gcdValue!=0 && comparisonValue % gcdValue ==0)
-					return Boolean.TRUE;
+				
+				// Find similar variables on LHS and RHS
+				String s = stmtData.get(0).getFirstStringValue();
+				for (int i = 1; i < stmtData.size(); i++) {
+					if(stmtData.get(i).getFirstStringValue().endsWith(s)){
+						int gcdValue = findGCD(stmtData.get(0).getIntegerValue(), stmtData.get(i).getIntegerValue());
+						int comparisonValue = Math.abs(stmtData.get(0).getLoopIndexValue() - stmtData.get(i).getLoopIndexValue());
+						if(gcdValue!=0 && comparisonValue % gcdValue ==0)
+							return Boolean.TRUE;
+					}
+				}
 			}
-			else
-				return Boolean.FALSE;
 			return Boolean.FALSE;
 	}
 	
@@ -431,7 +406,8 @@ public class StatementSelfDependence extends AbstractNodeCaseHandler {
 		while(it1.hasNext()){
 			Stmt statement = it1.next();
 			if(statement instanceof AssignStmt){
-				if(dependenceHM.get(statement.getuID()) != 1){// checking if statement is independent
+				if(dependenceHM.get(statement.getuID()) != 1){
+					// checking if statement is independent
 					if(!statement.getChild(1).getClass().toString().endsWith("LiteralExpr")){
 						ASTNode newNode = replaceExpression((Expr) statement.getChild(1), r);
 						statement.removeChild(1);
@@ -508,7 +484,37 @@ public class StatementSelfDependence extends AbstractNodeCaseHandler {
             return astnode;
     }
 	
-	
+    /**
+     * 
+     * @param child : The expression where to find parameterized expression node
+     * @return The parameterized node
+     */
+    public List<ParameterizedExpr> getParameterizedExpr(Expr child) {
+    	List<ParameterizedExpr> lw = new ArrayList();
+        if (child instanceof BinaryExpr) {
+                if (child instanceof PlusExpr) {
+                		lw.addAll(getParameterizedExpr((Expr) child.getChild(0)));
+                		lw.addAll(getParameterizedExpr((Expr) child.getChild(1)));
+                } else if (child instanceof MTimesExpr) {
+                	lw.addAll(getParameterizedExpr((Expr) child.getChild(0)));
+            		lw.addAll(getParameterizedExpr((Expr) child.getChild(1)));
+                } else if (child instanceof MinusExpr) {
+                	lw.addAll(getParameterizedExpr((Expr) child.getChild(0)));
+            		lw.addAll(getParameterizedExpr((Expr) child.getChild(1)));
+                } else if (child instanceof MDivExpr) {
+                	lw.addAll(getParameterizedExpr((Expr) child.getChild(0)));
+            		lw.addAll(getParameterizedExpr((Expr) child.getChild(1)));
+                } else if (child instanceof ETimesExpr) {
+                	lw.addAll(getParameterizedExpr((Expr) child.getChild(0)));
+            		lw.addAll(getParameterizedExpr((Expr) child.getChild(1)));
+                }
+        } else if (child instanceof ParameterizedExpr) {
+        	lw.add((ParameterizedExpr) child);
+        }
+        return lw;
+}
+    
+    
 	private static int findGCD(int number1, int number2) {
         //base case
         if(number2 == 0){
