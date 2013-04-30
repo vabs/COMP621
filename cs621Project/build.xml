@@ -1,0 +1,33 @@
+<project name="cs621" default="compile" basedir=".">
+  <description>provided code for COMP621 assignment 2</description>
+  <property name="src" location="src" />
+  <property name="bin" location="bin" />
+  <property name="natlab-jar" location="Natlab.jar" />
+
+  <macrodef name="write-runner-script">
+  <attribute name="file" />
+  <attribute name="class" />
+  <sequential>
+  <echo file="@{file}">#!/bin/bash
+java -cp ${bin}:${natlab-jar} @{class} "$@"
+  </echo>
+  <chmod file="@{file}" perm="755" />  
+  </sequential>
+  </macrodef>
+
+  <target name="compile" depends="clean" description="compile everything">
+    <mkdir dir="${bin}" />
+    <javac includeantruntime="false"
+           srcdir="${src}" destdir="${bin}" classpath="${natlab-jar}" />
+    <write-runner-script file="profile-assignments.sh"
+                         class="natlab.cs621.instrumentation.Main" />
+    <write-runner-script file="analyze-reaching-defs.sh"
+                         class="natlab.cs621.analysis.Main" />
+  </target>
+
+  <target name="clean" description="clean up">
+    <delete dir="${bin}" failonerror="false" />
+    <delete file="profile-assignments.sh" failonerror="false" />
+    <delete file="analyze-reaching-defs.sh" failonerror="false" />
+  </target>
+</project>
